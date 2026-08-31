@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>IRIS-X · Kacamata VR Deteksi Corak Perlawanan</title>
+<style>
+  /* ============================================================
+     IRIS-X VR HUD  —  estetika hologram sci-fi (terinspirasi Ejen Ali)
+     Binocular split-screen VR (kiri + kanan) dengan parallax depth
+     ============================================================ */
+  :root {
+    --hud-cyan:        #36f9f6;
+    --hud-cyan-soft:   rgba(54,249,246,0.55);
+    --hud-cyan-dim:    rgba(54,249,246,0.18);
+    --hud-blue:        #1b8bff;
+    --hud-yellow:      #ffd23a;
+    --hud-orange:      #ff8a1e;
+    --hud-red:         #ff2d55;
+    --hud-red-soft:    rgba(255,45,85,0.35);
+    --hud-green:       #29ff8a;
+    --hud-bg:          #02060c;
+    --hud-panel:       rgba(8,18,28,0.55);
+    --hud-grid:        rgba(54,249,246,0.10);
+    --font-hud:        "Segoe UI", "SF Pro Display", "Inter", system-ui, sans-serif;
+    --font-mono:       "SFMono-Regular", "Consolas", "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--hud-bg);
+    color: var(--hud-cyan);
+    font-family: var(--font-hud);
+    -webkit-user-select: none; user-select: none;
+    touch-action: none;
+  }
+
+  /* ====== Pre-flight / Start screen ====== */
+  #startScreen {
+    position: fixed; inset: 0; z-index: 200;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(27,139,255,0.18), transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(255,45,85,0.12), transparent 50%),
+      linear-gradient(135deg, #02060c 0%, #04101a 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    transition: opacity .6s ease;
+  }
+  #startScreen.hidden { opacity: 0; pointer-events: none; }
+
+  .brand-mark {
+    width: 120px; height: 120px; margin-bottom: 18px;
+    border: 2px solid var(--hud-cyan);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    position: relative;
+    background: radial-gradient(circle, rgba(54,249,246,0.18), transparent 70%);
+    box-shadow: 0 0 30px rgba(54,249,246,0.35), inset 0 0 30px rgba(54,249,246,0.25);
+    animation: brandPulse 3s ease-in-out infinite;
+  }
+  .brand-mark::before, .brand-mark::after {
+    content: ""; position: absolute; inset: -8px;
+    border: 1px dashed var(--hud-cyan-soft);
+    border-radius: 50%;
+    animation: brandSpin 14s linear infinite;
+  }
+  .brand-mark::after { inset: -18px; border-style: dotted; animation-duration: 22s; animation-direction: reverse; }
+  .brand-mark span {
+    font-size: 44px; font-weight: 800; color: #fff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 12px var(--hud-cyan), 0 0 24px var(--hud-cyan-soft);
+  }
+  @keyframes brandPulse {
+    0%,100% { box-shadow: 0 0 30px rgba(54,249,246,0.35), inset 0 0 30px rgba(54,249,246,0.25); }
+    50%     { box-shadow: 0 0 55px rgba(54,249,246,0.65), inset 0 0 45px rgba(54,249,246,0.45); }
+  }
+  @keyframes brandSpin { to { transform: rotate(360deg); } }
+
+  #startScreen h1 {
+    font-size: 30px; letter-spacing: 4px; font-weight: 700;
+    color: #fff; text-transform: uppercase;
+    text-shadow: 0 0 14px var(--hud-cyan);
+  }
+  #startScreen h1 b { color: var(--hud-cyan); }
+  #startScreen .tagline {
+    margin-top: 8px; color: var(--hud-cyan-soft);
+    font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  }
+  #startScreen .desc {
+    margin-top: 22px; max-width: 580px; line-height: 1.6;
+    color: rgba(255,255,255,0.72); font-size: 14px;
+  }
+  #startScreen .features {
+    margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; max-width: 720px;
+  }
+  .feat-chip {
+    border: 1px solid var(--hud-cyan-dim);
+    background: rgba(54,249,246,0.06);
+    padding: 8px 14px; border-radius: 4px;
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--hud-cyan);
+  }
+  .feat-chip b { color: #fff; }
+
+  #btnStart {
+    margin-top: 32px;
+    background: linear-gradient(135deg, var(--hud-cyan), var(--hud-blue));
+    color: #02060c; font-weight: 800; letter-spacing: 3px;
+    padding: 16px 42px; border: none; border-radius: 4px;
+    font-size: 16px; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 0 24px rgba(54,249,246,0.55), inset 0 0 12px rgba(255,255,255,0.3);
+    transition: all .25s ease;
+    position: relative;
+  }
+  #btnStart::before {
+    content: ""; position: absolute; inset: -4px;
+    border: 1px solid var(--hud-cyan-soft); border-radius: 6px;
+    pointer-events: none;
+  }
+  #btnStart:hover { transform: translateY(-2px); box-shadow: 0 4px 32px rgba(54,249,246,0.85), inset 0 0 16px rgba(255,255,255,0.4); }
+  #btnStart:active { transform: translateY(0); }
+  #startHint {
+    margin-top: 14px; font-size: 11px; color: rgba(255,255,255,0.5);
+    letter-spacing: 1px;
+  }
+
+  /* ====== Main VR viewport ====== */
+  #viewport {
+    position: fixed; inset: 0;
+    background: #000;
+    display: none;
+  }
+  #viewport.active { display: block; }
+
+  /* Binocular split: two eyes side-by-side */
+  #eyes {
+    position: absolute; inset: 0;
+    display: flex;
+    align-items: stretch;
+    background: #000;
+  }
+
+  .eye {
+    position: relative;
+    flex: 1 1 50%;
+    overflow: hidden;
+    background: #000;
+  }
+
+  /* Lens distortion edges */
+  .eye::before {
+    content: ""; position: absolute; inset: 0; z-index: 6;
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 80px 10px rgba(0,0,0,0.65),
+      inset 0 0 25px 0 rgba(54,249,246,0.18);
+    border-radius: 50% / 12%;
+  }
+
+  /* Off-screen source video (not displayed directly) */
+  #cam {
+    position: absolute; width: 1px; height: 1px;
+    opacity: 0; pointer-events: none;
+    top: -9999px; left: -9999px;
+  }
+
+  /* Per-eye canvas */
+  .eye-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+  }
+  .eye-canvas.blurred { filter: blur(8px) brightness(0.4) saturate(0.6); }
+
+  /* Per-eye vignette + scanlines */
+  .eye-vignette {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background:
+      radial-gradient(ellipse 90% 90% at center, transparent 30%, rgba(0,0,0,0.55) 95%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 2px, transparent 4px);
+  }
+
+  /* Nose bridge between eyes */
+  #bridge {
+    position: relative;
+    flex: 0 0 18px;
+    background: linear-gradient(180deg, #000 0%, #06121a 50%, #000 100%);
+    border-left: 1px solid rgba(54,249,246,0.15);
+    border-right: 1px solid rgba(54,249,246,0.15);
+    z-index: 7;
+    box-shadow:
+      -8px 0 20px rgba(0,0,0,0.6),
+      8px 0 20px rgba(0,0,0,0.6);
+  }
+  #bridge::before {
+    content: ""; position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px; height: 60px;
+    background: linear-gradient(180deg, transparent, rgba(54,249,246,0.4), transparent);
+    box-shadow: 0 0 12px rgba(54,249,246,0.4);
+    border-radius: 2px;
+  }
+
+  /* ====== Per-eye HUD layer (duplicated in both eyes) ====== */
+  .eye-hud {
+    position: absolute; inset: 0; z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Top status bar */
+  .top-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(0,8,14,0.7), transparent);
+  }
+  .hud-panel {
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-cyan-dim);
+    padding: 7px 10px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.3px;
+    color: var(--hud-cyan);
+    backdrop-filter: blur(4px);
+    position: relative;
+  }
+  .hud-panel::before, .hud-panel::after {
+    content: ""; position: absolute; width: 7px; height: 7px;
+    border-color: var(--hud-cyan);
+  }
+  .hud-panel::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+  .hud-panel::after  { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+
+  .system-status { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
+  .system-status .row { display: flex; justify-content: space-between; gap: 10px; }
+  .system-status .label { color: var(--hud-cyan-soft); }
+  .system-status .val { color: #fff; }
+  .system-status .val.ok { color: var(--hud-green); }
+  .system-status .val.warn { color: var(--hud-yellow); }
+  .system-status .val.danger { color: var(--hud-red); }
+
+  .atlas-block { text-align: right; min-width: 130px; }
+  .atlas-block .big {
+    font-size: 14px; font-weight: 700; letter-spacing: 3px; color: #fff;
+    text-shadow: 0 0 8px var(--hud-cyan);
+  }
+  .atlas-block .sub { font-size: 8px; color: var(--hud-cyan-soft); letter-spacing: 1.5px; }
+  .atlas-status {
+    margin-top: 4px;
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--hud-green);
+    color: var(--hud-green);
+    font-size: 9px; letter-spacing: 1.5px;
+    background: rgba(41,255,138,0.08);
+  }
+  .atlas-status.warn { border-color: var(--hud-yellow); color: var(--hud-yellow); background: rgba(255,210,58,0.08); }
+  .atlas-status.danger { border-color: var(--hud-red); color: var(--hud-red); background: rgba(255,45,85,0.12); animation: blinkDanger 0.8s steps(2) infinite; }
+  @keyframes blinkDanger { 50% { opacity: 0.35; } }
+
+  /* ====== Center reticle ====== */
+  .reticle {
+    position: absolute; top: 42%; left: 50%;
+    width: 76px; height: 76px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .reticle svg { width: 100%; height: 100%; overflow: visible; }
+  .reticle .ring { fill: none; stroke: var(--hud-cyan); stroke-width: 1.5; opacity: 0.85; }
+  .reticle .tick { stroke: var(--hud-cyan); stroke-width: 2; }
+  .reticle .dot { fill: var(--hud-cyan); }
+  .reticle.danger .ring, .reticle.danger .tick, .reticle.danger .dot { stroke: var(--hud-red); fill: var(--hud-red); }
+  .reticle.warn .ring, .reticle.warn .tick, .reticle.warn .dot { stroke: var(--hud-yellow); fill: var(--hud-yellow); }
+  .reticle .rotateSlow { transform-origin: 50% 50%; animation: spinSlow 12s linear infinite; }
+  .reticle .rotateFast { transform-origin: 50% 50%; animation: spinFast 4s linear infinite reverse; }
+  @keyframes spinSlow { to { transform: rotate(360deg); } }
+  @keyframes spinFast { to { transform: rotate(360deg); } }
+
+  /* ====== Direction arrow — dynamic position (follows path) ====== */
+  .dir-guide {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  /* The arrow itself moves position */
+  .dir-arrow {
+    position: absolute;
+    width: 56px; height: 56px;
+    left: 50%;
+    bottom: 200px;
+    transform: translateX(-50%);
+    color: var(--hud-cyan);
+    filter: drop-shadow(0 0 8px var(--hud-cyan-soft));
+    transition:
+      left .45s cubic-bezier(.4,1.4,.4,1),
+      bottom .45s cubic-bezier(.4,1.4,.4,1),
+      transform .45s cubic-bezier(.4,1.4,.4,1),
+      color .25s, filter .25s;
+  }
+  .dir-arrow svg { width: 100%; height: 100%; }
+  .dir-arrow.warn { color: var(--hud-yellow); filter: drop-shadow(0 0 10px var(--hud-yellow)); }
+  .dir-arrow.danger { color: var(--hud-red); filter: drop-shadow(0 0 12px var(--hud-red)); animation: pulseArrow .6s ease-in-out infinite; }
+  @keyframes pulseArrow {
+    0%,100% { transform: translateX(-50%) scale(1); }
+    50%     { transform: translateX(-50%) scale(1.18); }
+  }
+
+  /* Path trail SVG — chevrons on the floor */
+  .path-trail {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 60px;
+    height: 220px;
+    pointer-events: none;
+  }
+  .path-trail svg { width: 100%; height: 100%; overflow: visible; }
+  .path-trail .grid-line { stroke: rgba(54,249,246,0.15); stroke-width: 1; fill: none; }
+  .path-trail .path-node {
+    fill: var(--hud-cyan);
+    filter: drop-shadow(0 0 4px var(--hud-cyan-soft));
+    transition: transform .5s cubic-bezier(.4,1.2,.4,1), fill .25s, opacity .25s;
+    transform-origin: center;
+  }
+  .path-trail .path-chevron {
+    fill: none;
+    stroke: var(--hud-cyan);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 4px var(--hud-cyan-soft));
+    transition: transform .5s cubic-bezier(.4,1.2,.4,1), stroke .25s, opacity .25s;
+  }
+  .path-trail.warn .path-node { fill: var(--hud-yellow); }
+  .path-trail.warn .path-chevron { stroke: var(--hud-yellow); }
+  .path-trail.danger .path-node { fill: var(--hud-red); }
+  .path-trail.danger .path-chevron { stroke: var(--hud-red); }
+
+  .dir-label {
+    position: absolute;
+    left: 50%;
+    bottom: 175px;
+    transform: translateX(-50%);
+    font-size: 12px; font-weight: 700; letter-spacing: 3px;
+    color: var(--hud-cyan);
+    text-shadow: 0 0 8px var(--hud-cyan-soft);
+    transition: left .45s cubic-bezier(.4,1.4,.4,1), color .25s;
+    white-space: nowrap;
+  }
+  .dir-label.warn { color: var(--hud-yellow); text-shadow: 0 0 8px var(--hud-yellow); }
+  .dir-label.danger { color: var(--hud-red); text-shadow: 0 0 10px var(--hud-red); }
+
+  /* ====== Distance meter (bottom-left) ====== */
+  .dist-meter {
+    position: absolute; left: 12px; bottom: 70px;
+    width: 180px;
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-cyan-dim);
+    border-radius: 3px;
+    padding: 8px 10px;
+    backdrop-filter: blur(4px);
+  }
+  .dist-meter::before, .dist-meter::after {
+    content: ""; position: absolute; width: 7px; height: 7px;
+    border-color: var(--hud-cyan);
+  }
+  .dist-meter::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+  .dist-meter::after  { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+  .dist-meter .head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9px; letter-spacing: 1.5px; color: var(--hud-cyan-soft);
+    margin-bottom: 6px;
+  }
+  .dist-meter .head .val { color: #fff; font-family: var(--font-mono); font-size: 11px; }
+  .dist-bar-wrap {
+    position: relative;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--hud-cyan-dim);
+    overflow: hidden;
+  }
+  .dist-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--hud-green) 0%, var(--hud-yellow) 50%, var(--hud-red) 100%);
+    transition: width .2s ease;
+  }
+  .dist-bar-wrap .tick {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: rgba(255,255,255,0.25);
+  }
+  .dist-meter .foot {
+    margin-top: 4px; display: flex; justify-content: space-between;
+    font-size: 8px; color: var(--hud-cyan-soft); letter-spacing: 1px;
+  }
+
+  /* ====== Threat list (bottom-right) ====== */
+  .threat-panel {
+    position: absolute; right: 12px; bottom: 70px;
+    width: 190px;
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-cyan-dim);
+    border-radius: 3px;
+    padding: 8px 10px;
+    backdrop-filter: blur(4px);
+    max-height: 200px; overflow: hidden;
+  }
+  .threat-panel::before, .threat-panel::after {
+    content: ""; position: absolute; width: 7px; height: 7px;
+    border-color: var(--hud-cyan);
+  }
+  .threat-panel::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+  .threat-panel::after  { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+  .threat-panel .head {
+    font-size: 9px; letter-spacing: 1.5px; color: var(--hud-cyan-soft);
+    margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+  }
+  .threat-panel .head .count { color: #fff; font-family: var(--font-mono); }
+  .threat-list { list-style: none; font-family: var(--font-mono); font-size: 10px; }
+  .threat-list li {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed rgba(54,249,246,0.12);
+    color: #fff;
+  }
+  .threat-list li:last-child { border-bottom: none; }
+  .threat-list li .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .threat-list li.safe .dot    { background: var(--hud-green); box-shadow: 0 0 6px var(--hud-green); }
+  .threat-list li.warn .dot    { background: var(--hud-yellow); box-shadow: 0 0 6px var(--hud-yellow); }
+  .threat-list li.danger .dot  { background: var(--hud-red); box-shadow: 0 0 8px var(--hud-red); animation: blinkDot .6s steps(2) infinite; }
+  @keyframes blinkDot { 50% { opacity: 0.2; } }
+  .threat-list li .name { flex: 1; }
+  .threat-list li .dist { color: var(--hud-cyan-soft); font-size: 9px; }
+  .threat-list li.empty {
+    color: var(--hud-cyan-soft); justify-content: center;
+    font-style: italic; font-size: 9px;
+  }
+
+  /* ====== Compass / heading ====== */
+  .compass {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    pointer-events: none;
+  }
+  .compass .ring {
+    width: 50px; height: 50px; border-radius: 50%;
+    border: 1px solid var(--hud-cyan-dim);
+    position: relative;
+    background: rgba(8,18,28,0.4);
+  }
+  .compass .needle {
+    position: absolute; top: 50%; left: 50%;
+    width: 2px; height: 20px;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(0deg);
+    background: linear-gradient(180deg, var(--hud-red) 0%, var(--hud-red) 50%, var(--hud-cyan) 50%, var(--hud-cyan) 100%);
+    box-shadow: 0 0 6px var(--hud-cyan-soft);
+    transition: transform .4s ease;
+  }
+  .compass .cardinal {
+    position: absolute; font-size: 7px; font-weight: 700;
+    color: var(--hud-cyan-soft); letter-spacing: 0.5px;
+  }
+  .compass .cardinal.n { top: 1px; left: 50%; transform: translateX(-50%); color: var(--hud-red); }
+  .compass .cardinal.s { bottom: 1px; left: 50%; transform: translateX(-50%); }
+  .compass .cardinal.e { right: 3px; top: 50%; transform: translateY(-50%); }
+  .compass .cardinal.w { left: 3px; top: 50%; transform: translateY(-50%); }
+  .compass .heading {
+    font-family: var(--font-mono); font-size: 8px; color: #fff;
+    letter-spacing: 1px;
+  }
+
+  /* ====== Side ticks / framing ====== */
+  .side-frame {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 60%;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .side-frame.left { left: 0; }
+  .side-frame.right { right: 0; }
+  .side-frame svg { width: 100%; height: 100%; }
+
+  /* ====== Telemetry strip ====== */
+  .telemetry {
+    position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; align-items: center;
+    font-family: var(--font-mono); font-size: 9px;
+    color: var(--hud-cyan-soft); letter-spacing: 1.5px;
+    pointer-events: none;
+    background: rgba(2,6,12,0.55);
+    padding: 4px 10px; border-radius: 2px;
+    border: 1px solid var(--hud-cyan-dim);
+  }
+  .telemetry .item { display: flex; align-items: center; gap: 4px; }
+  .telemetry .item .lbl { color: var(--hud-cyan-soft); }
+  .telemetry .item .v { color: #fff; }
+  .telemetry .item .v.warn { color: var(--hud-yellow); }
+  .telemetry .item .v.danger { color: var(--hud-red); }
+  .telemetry .sep { width: 1px; height: 8px; background: var(--hud-cyan-dim); }
+
+  /* ====== Bottom command bar (spans both eyes) ====== */
+  #bottomBar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 16px;
+    background: linear-gradient(0deg, rgba(0,8,14,0.92), transparent);
+    pointer-events: auto;
+  }
+  #bottomBar .left, #bottomBar .right { display: flex; gap: 8px; align-items: center; }
+
+  .ctrl-btn {
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-cyan-dim);
+    color: var(--hud-cyan);
+    padding: 6px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.3px;
+    cursor: pointer; transition: all .2s ease;
+    backdrop-filter: blur(4px);
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .ctrl-btn:hover { background: rgba(54,249,246,0.18); border-color: var(--hud-cyan); color: #fff; }
+  .ctrl-btn.danger { border-color: var(--hud-red); color: var(--hud-red); }
+  .ctrl-btn.danger:hover { background: rgba(255,45,85,0.18); }
+  .ctrl-btn .icon { display: inline-block; width: 12px; height: 12px; }
+  .ctrl-btn.active { background: rgba(54,249,246,0.22); color: #fff; border-color: var(--hud-cyan); box-shadow: 0 0 10px rgba(54,249,246,0.4); }
+
+  .ctrl-slider {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--hud-panel); border: 1px solid var(--hud-cyan-dim);
+    padding: 5px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.3px;
+    color: var(--hud-cyan-soft);
+  }
+  .ctrl-slider input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 70px; height: 4px; background: var(--hud-cyan-dim);
+    outline: none; border-radius: 2px;
+  }
+  .ctrl-slider input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--hud-cyan);
+    box-shadow: 0 0 6px var(--hud-cyan);
+    cursor: pointer;
+  }
+  .ctrl-slider input[type=range]::-moz-range-thumb {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--hud-cyan); border: none;
+    box-shadow: 0 0 6px var(--hud-cyan);
+    cursor: pointer;
+  }
+  .ctrl-slider .val { color: #fff; min-width: 20px; text-align: right; }
+
+  /* ====== Alert banner (top center, spans both eyes) ====== */
+  #alertBanner {
+    position: absolute; top: 70px; left: 50%;
+    transform: translateX(-50%) translateY(-30px);
+    padding: 10px 28px;
+    background: rgba(255,45,85,0.18);
+    border: 1px solid var(--hud-red);
+    color: var(--hud-red);
+    font-size: 14px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px var(--hud-red);
+    backdrop-filter: blur(4px);
+    opacity: 0; transition: all .35s cubic-bezier(.4,1.4,.4,1);
+    pointer-events: none;
+    z-index: 90;
+  }
+  #alertBanner.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  #alertBanner.warn {
+    background: rgba(255,210,58,0.15);
+    border-color: var(--hud-yellow);
+    color: var(--hud-yellow);
+    text-shadow: 0 0 10px var(--hud-yellow);
+  }
+  #alertBanner.fall {
+    background: rgba(255,138,30,0.20);
+    border-color: var(--hud-orange);
+    color: var(--hud-orange);
+    text-shadow: 0 0 10px var(--hud-orange);
+    animation: shake .2s linear 3;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(-50%) translateY(0); }
+    25% { transform: translateX(-52%) translateY(0); }
+    75% { transform: translateX(-48%) translateY(0); }
+  }
+
+  /* ====== Boot overlay ====== */
+  #bootLog {
+    position: absolute; inset: 0;
+    background: rgba(2,6,12,0.92);
+    z-index: 150;
+    display: none;
+    flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 40px;
+    font-family: var(--font-mono);
+    color: var(--hud-cyan);
+    transition: opacity .5s ease;
+  }
+  #bootLog.show { display: flex; }
+  #bootLog .title {
+    font-size: 22px; letter-spacing: 5px; color: #fff;
+    text-shadow: 0 0 10px var(--hud-cyan);
+    margin-bottom: 20px;
+  }
+  #bootLog .lines {
+    width: 100%; max-width: 500px;
+    font-size: 11px; line-height: 1.7;
+    color: var(--hud-cyan);
+  }
+  #bootLog .lines .ok { color: var(--hud-green); }
+  #bootLog .lines .warn { color: var(--hud-yellow); }
+  #bootLog .progress {
+    width: 100%; max-width: 500px; margin-top: 20px;
+    height: 3px; background: rgba(54,249,246,0.12);
+    border: 1px solid var(--hud-cyan-dim);
+    overflow: hidden;
+  }
+  #bootLog .progress .fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--hud-cyan), var(--hud-blue));
+    transition: width .3s ease;
+    box-shadow: 0 0 8px var(--hud-cyan);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ START SCREEN ============ -->
+<div id="startScreen">
+  <div class="brand-mark"><span>IRIS-X</span></div>
+  <h1>KACAMATA <b>VR</b> INTELIJEN</h1>
+  <div class="tagline">SISTEM DETEKSI CORAK PERLAWANAN · v3.0 BINOCULAR</div>
+  <p class="desc">
+    Kacamata VR dengan kamera ganda terbelah (mode teropong) yang mendeteksi pola
+    pergerakan lawan secara real-time. Tanda panah panduan bergerak mengikuti arah
+    jalan yang harus dituju, dilengkapi jalur chevron di lantai untuk memandu langkah.
+  </p>
+  <div class="features">
+    <div class="feat-chip"><b>01</b> · Kamera VR Terbelah Dua</div>
+    <div class="feat-chip"><b>02</b> · Deteksi Corak Perlawanan</div>
+    <div class="feat-chip"><b>03</b> · Meter Jarak Bahaya</div>
+    <div class="feat-chip"><b>04</b> · Panah Ikuti Arah Jalan</div>
+    <div class="feat-chip"><b>05</b> · Jalur Chevron</div>
+    <div class="feat-chip"><b>06</b> · Anti-Jatuh</div>
+  </div>
+  <button id="btnStart">AKTIFKAN IRIS-X</button>
+  <div id="startHint">Izinkan akses kamera · Gunakan headphone untuk peringatan suara</div>
+</div>
+
+<!-- ============ BOOT LOG OVERLAY ============ -->
+<div id="bootLog">
+  <div class="title">IRIS-X · BOOTING</div>
+  <div class="lines" id="bootLines"></div>
+  <div class="progress"><div class="fill" id="bootFill"></div></div>
+</div>
+
+<!-- ============ MAIN VR VIEWPORT (BINOCULAR) ============ -->
+<div id="viewport">
+  <!-- Off-screen video source (drawn into per-eye canvases) -->
+  <video id="cam" autoplay playsinline muted></video>
+
+  <div id="eyes">
+    <!-- LEFT EYE -->
+    <div class="eye" id="eyeLeft">
+      <canvas class="eye-canvas" id="canvasLeft"></canvas>
+      <div class="eye-vignette"></div>
+
+      <!-- Side framing ticks -->
+      <div class="side-frame left">
+        <svg viewBox="0 0 22 600" preserveAspectRatio="none">
+          <g stroke="rgba(54,249,246,0.35)" stroke-width="1" fill="none">
+            <line x1="0" y1="0" x2="22" y2="0"/>
+            <line x1="0" y1="0" x2="0" y2="600"/>
+            <line x1="0" y1="600" x2="22" y2="600"/>
+            <g stroke="rgba(54,249,246,0.55)">
+              <line x1="0" y1="60" x2="10" y2="60"/>
+              <line x1="0" y1="120" x2="14" y2="120"/>
+              <line x1="0" y1="180" x2="8" y2="180"/>
+              <line x1="0" y1="240" x2="16" y2="240"/>
+              <line x1="0" y1="300" x2="10" y2="300"/>
+              <line x1="0" y1="360" x2="14" y2="360"/>
+              <line x1="0" y1="420" x2="8" y2="420"/>
+              <line x1="0" y1="480" x2="16" y2="480"/>
+              <line x1="0" y1="540" x2="10" y2="540"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="side-frame right">
+        <svg viewBox="0 0 22 600" preserveAspectRatio="none">
+          <g stroke="rgba(54,249,246,0.35)" stroke-width="1" fill="none">
+            <line x1="22" y1="0" x2="0" y2="0"/>
+            <line x1="22" y1="0" x2="22" y2="600"/>
+            <line x1="22" y1="600" x2="0" y2="600"/>
+            <g stroke="rgba(54,249,246,0.55)">
+              <line x1="22" y1="60" x2="12" y2="60"/>
+              <line x1="22" y1="120" x2="8" y2="120"/>
+              <line x1="22" y1="180" x2="14" y2="180"/>
+              <line x1="22" y1="240" x2="6" y2="240"/>
+              <line x1="22" y1="300" x2="12" y2="300"/>
+              <line x1="22" y1="360" x2="8" y2="360"/>
+              <line x1="22" y1="420" x2="14" y2="420"/>
+              <line x1="22" y1="480" x2="6" y2="480"/>
+              <line x1="22" y1="540" x2="12" y2="540"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- HUD template (will be cloned to right eye) -->
+      <div class="eye-hud" id="hudTemplate">
+        <!-- Top bar -->
+        <div class="top-bar">
+          <div class="hud-panel system-status">
+            <div class="row"><span class="label">SYS</span><span class="val ok" data-key="sys">ONLINE</span></div>
+            <div class="row"><span class="label">CAM</span><span class="val ok" data-key="cam">ACTIVE</span></div>
+            <div class="row"><span class="label">AI</span><span class="val" data-key="ai">v3.0.0</span></div>
+            <div class="row"><span class="label">FPS</span><span class="val" data-key="fps">--</span></div>
+          </div>
+          <div class="hud-panel atlas-block">
+            <div class="big">ATLAS</div>
+            <div class="sub">PATTERN RECOGNITION</div>
+            <div class="atlas-status" data-key="atlas">STANDBY</div>
+          </div>
+        </div>
+
+        <!-- Compass -->
+        <div class="compass">
+          <div class="ring">
+            <div class="cardinal n">U</div>
+            <div class="cardinal s">S</div>
+            <div class="cardinal e">T</div>
+            <div class="cardinal w">B</div>
+            <div class="needle" data-key="needle"></div>
+          </div>
+          <div class="heading" data-key="heading">0°</div>
+        </div>
+
+        <!-- Center reticle -->
+        <div class="reticle" data-key="reticle">
+          <svg viewBox="0 0 100 100">
+            <g class="rotateSlow">
+              <circle class="ring" cx="50" cy="50" r="42"/>
+              <line class="tick" x1="50" y1="2"  x2="50" y2="10"/>
+              <line class="tick" x1="50" y1="90" x2="50" y2="98"/>
+              <line class="tick" x1="2"  y1="50" x2="10" y2="50"/>
+              <line class="tick" x1="90" y1="50" x2="98" y2="50"/>
+            </g>
+            <g class="rotateFast">
+              <circle class="ring" cx="50" cy="50" r="28" stroke-dasharray="4 6"/>
+            </g>
+            <circle class="ring" cx="50" cy="50" r="14"/>
+            <line class="tick" x1="50" y1="36" x2="50" y2="44"/>
+            <line class="tick" x1="50" y1="56" x2="50" y2="64"/>
+            <line class="tick" x1="36" y1="50" x2="44" y2="50"/>
+            <line class="tick" x1="56" y1="50" x2="64" y2="50"/>
+            <circle class="dot" cx="50" cy="50" r="1.5"/>
+          </svg>
+        </div>
+
+        <!-- Direction guide: arrow moves + path trail -->
+        <div class="dir-guide">
+          <!-- Path trail SVG -->
+          <div class="path-trail" data-key="pathTrail">
+            <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYEnd meet">
+              <!-- Perspective floor lines -->
+              <g class="grid-floor">
+                <line class="grid-line" x1="60" y1="220" x2="200" y2="0"/>
+                <line class="grid-line" x1="140" y1="220" x2="200" y2="0"/>
+                <line class="grid-line" x1="200" y1="220" x2="200" y2="0"/>
+                <line class="grid-line" x1="260" y1="220" x2="200" y2="0"/>
+                <line class="grid-line" x1="340" y1="220" x2="200" y2="0"/>
+                <!-- horizontal perspective rings -->
+                <line class="grid-line" x1="100" y1="180" x2="300" y2="180"/>
+                <line class="grid-line" x1="130" y1="140" x2="270" y2="140"/>
+                <line class="grid-line" x1="160" y1="100" x2="240" y2="100"/>
+                <line class="grid-line" x1="180" y1="60"  x2="220" y2="60"/>
+              </g>
+              <!-- Path nodes (filled circles, dynamic x) -->
+              <g data-key="pathNodes">
+                <circle class="path-node" data-i="0" cx="200" cy="200" r="7"/>
+                <circle class="path-node" data-i="1" cx="200" cy="165" r="6"/>
+                <circle class="path-node" data-i="2" cx="200" cy="130" r="5"/>
+                <circle class="path-node" data-i="3" cx="200" cy="95"  r="4"/>
+                <circle class="path-node" data-i="4" cx="200" cy="60"  r="3"/>
+              </g>
+              <!-- Path chevrons (arrows pointing forward, dynamic x) -->
+              <g data-key="pathChevrons">
+                <path class="path-chevron" data-i="0" d="M188 200 L200 188 L212 200"/>
+                <path class="path-chevron" data-i="1" d="M190 165 L200 154 L210 165"/>
+                <path class="path-chevron" data-i="2" d="M192 130 L200 121 L208 130"/>
+                <path class="path-chevron" data-i="3" d="M193 95  L200 87  L207 95"/>
+                <path class="path-chevron" data-i="4" d="M194 60  L200 54  L206 60"/>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Dynamic arrow (moves position based on direction) -->
+          <div class="dir-arrow" data-key="dirArrow">
+            <svg viewBox="0 0 64 64">
+              <path data-key="dirArrowPath" d="M32 8 L52 32 L40 32 L40 56 L24 56 L24 32 L12 32 Z"
+                    fill="currentColor" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div class="dir-label" data-key="dirLabel">LURUS · AMAN</div>
+        </div>
+
+        <!-- Distance meter -->
+        <div class="dist-meter">
+          <div class="head">
+            <span>JARAK ANCAMAN</span>
+            <span class="val" data-key="dist">--</span>
+          </div>
+          <div class="dist-bar-wrap">
+            <div class="dist-bar" data-key="distBar"></div>
+            <div class="tick" style="left:25%"></div>
+            <div class="tick" style="left:50%"></div>
+            <div class="tick" style="left:75%"></div>
+          </div>
+          <div class="foot">
+            <span>0.5m</span><span>2m</span><span>4m</span><span>6m+</span>
+          </div>
+        </div>
+
+        <!-- Threat panel -->
+        <div class="threat-panel">
+          <div class="head">
+            <span>CORAK TERDETEKSI</span>
+            <span class="count" data-key="threatCount">0</span>
+          </div>
+          <ul class="threat-list" data-key="threatList">
+            <li class="empty">memindai area...</li>
+          </ul>
+        </div>
+
+        <!-- Telemetry strip -->
+        <div class="telemetry">
+          <div class="item"><span class="lbl">STAB</span><span class="v ok" data-key="stab">100%</span></div>
+          <div class="sep"></div>
+          <div class="item"><span class="lbl">JATUH</span><span class="v ok" data-key="fall">RENDAH</span></div>
+          <div class="sep"></div>
+          <div class="item"><span class="lbl">LANE</span><span class="v" data-key="lane">TENGAH</span></div>
+          <div class="sep"></div>
+          <div class="item"><span class="lbl">MODE</span><span class="v ok" data-key="mode">PATROLI</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nose bridge -->
+    <div id="bridge"></div>
+
+    <!-- RIGHT EYE (HUD will be cloned here on init) -->
+    <div class="eye" id="eyeRight">
+      <canvas class="eye-canvas" id="canvasRight"></canvas>
+      <div class="eye-vignette"></div>
+      <div class="side-frame left">
+        <svg viewBox="0 0 22 600" preserveAspectRatio="none">
+          <g stroke="rgba(54,249,246,0.35)" stroke-width="1" fill="none">
+            <line x1="0" y1="0" x2="22" y2="0"/>
+            <line x1="0" y1="0" x2="0" y2="600"/>
+            <line x1="0" y1="600" x2="22" y2="600"/>
+            <g stroke="rgba(54,249,246,0.55)">
+              <line x1="0" y1="60" x2="10" y2="60"/>
+              <line x1="0" y1="120" x2="14" y2="120"/>
+              <line x1="0" y1="180" x2="8" y2="180"/>
+              <line x1="0" y1="240" x2="16" y2="240"/>
+              <line x1="0" y1="300" x2="10" y2="300"/>
+              <line x1="0" y1="360" x2="14" y2="360"/>
+              <line x1="0" y1="420" x2="8" y2="420"/>
+              <line x1="0" y1="480" x2="16" y2="480"/>
+              <line x1="0" y1="540" x2="10" y2="540"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="side-frame right">
+        <svg viewBox="0 0 22 600" preserveAspectRatio="none">
+          <g stroke="rgba(54,249,246,0.35)" stroke-width="1" fill="none">
+            <line x1="22" y1="0" x2="0" y2="0"/>
+            <line x1="22" y1="0" x2="22" y2="600"/>
+            <line x1="22" y1="600" x2="0" y2="600"/>
+            <g stroke="rgba(54,249,246,0.55)">
+              <line x1="22" y1="60" x2="12" y2="60"/>
+              <line x1="22" y1="120" x2="8" y2="120"/>
+              <line x1="22" y1="180" x2="14" y2="180"/>
+              <line x1="22" y1="240" x2="6" y2="240"/>
+              <line x1="22" y1="300" x2="12" y2="300"/>
+              <line x1="22" y1="360" x2="8" y2="360"/>
+              <line x1="22" y1="420" x2="14" y2="420"/>
+              <line x1="22" y1="480" x2="6" y2="480"/>
+              <line x1="22" y1="540" x2="12" y2="540"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="eye-hud" id="hudRight"></div>
+    </div>
+  </div>
+
+  <!-- Global alert banner (spans both eyes, single instance) -->
+  <div id="alertBanner">PERINGATAN</div>
+
+  <!-- Bottom controls (spans both eyes) -->
+  <div id="bottomBar">
+    <div class="left">
+      <button class="ctrl-btn" id="btnMute">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.06A4.5 4.5 0 0016.5 12z"/></svg>
+        <span id="muteLabel">SUARA: ON</span>
+      </button>
+      <button class="ctrl-btn active" id="btnGuide">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 12l8 10 8-10z"/></svg>
+        PANDUAN
+      </button>
+      <button class="ctrl-btn active" id="btnParallax">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v14H3z" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+        PARALLAX
+      </button>
+    </div>
+    <div class="right">
+      <div class="ctrl-slider">
+        <span>SENSITIVITAS</span>
+        <input type="range" id="sensRange" min="15" max="80" value="40"/>
+        <span class="val" id="sensVal">40</span>
+      </div>
+      <button class="ctrl-btn danger" id="btnStop">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+        MATI
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   IRIS-X  —  VR HUD Controller v3.0  (Binocular Split-Screen)
+   - Kamera terbelah dua (left eye + right eye) dengan parallax depth
+   - Deteksi corak perlawanan via frame differencing
+   - Panah arah bergerak posisi (kiri/tengah/kanan/bawah) mengikuti jalan
+   - Jalur chevron di lantai yang melengkung mengikuti arah
+   - Anti-jatuh via magnitude gerakan
+   - Audio alert Web Audio API
+   ============================================================ */
+
+(() => {
+  // ===== DOM refs =====
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  const startScreen = $('#startScreen');
+  const bootLog     = $('#bootLog');
+  const bootLines   = $('#bootLines');
+  const bootFill    = $('#bootFill');
+  const viewport    = $('#viewport');
+  const video       = $('#cam');
+
+  // Per-eye canvases
+  const canvasLeft  = $('#canvasLeft');
+  const canvasRight = $('#canvasRight');
+  const ctxLeft     = canvasLeft.getContext('2d', { willReadFrequently: false });
+  const ctxRight    = canvasRight.getContext('2d', { willReadFrequently: false });
+
+  // Per-eye HUD containers
+  const hudTemplate = $('#hudTemplate');
+  const hudRight    = $('#hudRight');
+
+  // Global HUD elements
+  const alertBanner = $('#alertBanner');
+  const btnStart    = $('#btnStart');
+  const btnMute     = $('#btnMute');
+  const muteLabel   = $('#muteLabel');
+  const btnGuide    = $('#btnGuide');
+  const btnParallax = $('#btnParallax');
+  const btnStop     = $('#btnStop');
+  const sensRange   = $('#sensRange');
+  const sensValEl   = $('#sensVal');
+
+  // ===== Internal state =====
+  const PROC_W = 160, PROC_H = 120;
+  const procCanvas = document.createElement('canvas');
+  procCanvas.width = PROC_W; procCanvas.height = PROC_H;
+  const pctx = procCanvas.getContext('2d', { willReadFrequently: true });
+
+  let prevFrame = null;
+  let stream = null;
+  let rafId  = null;
+  let running = false;
+  let muted  = false;
+  let guideOn = true;
+  let parallaxOn = true;
+  let sensitivity = 40;
+  let fps = 0;
+  let fpsCounter = 0, fpsTimer = performance.now();
+  let compassHeading = 0;
+  let stability = 100;
+  let lastAlertTs = 0;
+  let currentDirection = 'lurus';
+
+  // Audio
+  let audioCtx = null;
+  let alarmOsc = null, alarmGain = null;
+  let beepOsc  = null, beepGain  = null;
+
+  // ===== HUD state helpers (update ALL matching elements in both eyes) =====
+  function setTextAll(key, text) {
+    $$(`[data-key="${key}"]`).forEach(el => el.textContent = text);
+  }
+  function setHtmlAll(key, html) {
+    $$(`[data-key="${key}"]`).forEach(el => el.innerHTML = html);
+  }
+  function setClassAll(key, classes, add) {
+    $$(`[data-key="${key}"]`).forEach(el => {
+      const classesArr = Array.isArray(classes) ? classes : [classes];
+      if (add) classesArr.forEach(c => el.classList.add(c));
+      else    classesArr.forEach(c => el.classList.remove(c));
+    });
+  }
+  function setAttrAll(key, attr, val) {
+    $$(`[data-key="${key}"]`).forEach(el => el.setAttribute(attr, val));
+  }
+  function setStyleAll(key, prop, val) {
+    $$(`[data-key="${key}"]`).forEach(el => el.style.setProperty(prop, val));
+  }
+
+  // ===== Utility =====
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function showAlert(text, type='') {
+    alertBanner.textContent = text;
+    alertBanner.className = '';
+    if (type) alertBanner.classList.add(type);
+    alertBanner.classList.add('show');
+    clearTimeout(alertBanner._t);
+    alertBanner._t = setTimeout(() => {
+      alertBanner.classList.remove('show');
+    }, 2200);
+  }
+
+  // ===== Audio (Web Audio API) =====
+  function initAudio() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      alarmOsc = audioCtx.createOscillator();
+      alarmGain = audioCtx.createGain();
+      alarmOsc.type = 'sawtooth';
+      alarmOsc.frequency.value = 440;
+      alarmGain.gain.value = 0;
+      alarmOsc.connect(alarmGain).connect(audioCtx.destination);
+      alarmOsc.start();
+
+      beepOsc = audioCtx.createOscillator();
+      beepGain = audioCtx.createGain();
+      beepOsc.type = 'square';
+      beepOsc.frequency.value = 880;
+      beepGain.gain.value = 0;
+      beepOsc.connect(beepGain).connect(audioCtx.destination);
+      beepOsc.start();
+    } catch (e) {
+      console.warn('Audio init failed', e);
+    }
+  }
+
+  function setAlarm(active, freq=440, vol=0.18) {
+    if (!audioCtx || muted) { return; }
+    const t = audioCtx.currentTime;
+    if (active) {
+      alarmOsc.frequency.setValueAtTime(freq, t);
+      alarmOsc.frequency.linearRampToValueAtTime(freq * 1.5, t + 0.2);
+      alarmOsc.frequency.linearRampToValueAtTime(freq, t + 0.4);
+      alarmGain.gain.cancelScheduledValues(t);
+      alarmGain.gain.linearRampToValueAtTime(vol, t + 0.05);
+    } else {
+      alarmGain.gain.cancelScheduledValues(t);
+      alarmGain.gain.linearRampToValueAtTime(0, t + 0.1);
+    }
+  }
+
+  function beep(freq=880, duration=0.08, vol=0.12) {
+    if (!audioCtx || muted) return;
+    const t = audioCtx.currentTime;
+    beepOsc.frequency.setValueAtTime(freq, t);
+    beepGain.gain.cancelScheduledValues(t);
+    beepGain.gain.setValueAtTime(0, t);
+    beepGain.gain.linearRampToValueAtTime(vol, t + 0.01);
+    beepGain.gain.linearRampToValueAtTime(0, t + duration);
+  }
+
+  // ===== Boot animation =====
+  async function runBoot() {
+    bootLog.classList.add('show');
+    bootLines.innerHTML = '';
+    bootFill.style.width = '0%';
+    const lines = [
+      ['[OK] Inisialisasi IRIS-X core ........', 'ok'],
+      ['[OK] Mounting dual-eye display .......', 'ok'],
+      ['[OK] Kalibrasi parallax VR ...........', 'ok'],
+      ['[OK] Kalibrasi sensor kamera .........', 'ok'],
+      ['[..] Memuat ATLAS pattern engine ...', ''],
+      ['[OK] ATLAS engine online ............', 'ok'],
+      ['[..] Mengaktifkan deteksi corak ....', ''],
+      ['[OK] Deteksi corak perlawanan ON ...', 'ok'],
+      ['[..] Mengkalibrasi meter jarak .....', ''],
+      ['[OK] Meter jarak terkalibrasi ......', 'ok'],
+      ['[..] Memuat panduan arah dinamis ...', ''],
+      ['[OK] Panah arah + jalur chevron ON .', 'ok'],
+      ['[..] Sistem anti-jatuh .............', ''],
+      ['[OK] Anti-jatuh aktif ...............', 'ok'],
+      ['[!!] Mode PATROLI BINOCULAR aktif ..', 'warn'],
+    ];
+    for (let i=0; i<lines.length; i++) {
+      await new Promise(r => setTimeout(r, 180));
+      const div = document.createElement('div');
+      div.innerHTML = lines[i][0];
+      if (lines[i][1]) div.className = lines[i][1];
+      bootLines.appendChild(div);
+      bootFill.style.width = ((i+1)/lines.length*100) + '%';
+      if (audioCtx) beep(660 + i*30, 0.04, 0.05);
+    }
+    await new Promise(r => setTimeout(r, 400));
+    bootLog.style.opacity = '0';
+    setTimeout(() => { bootLog.classList.remove('show'); bootLog.style.opacity='1'; }, 500);
+  }
+
+  // ===== Camera =====
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      setTextAll('cam', 'ACTIVE');
+      return true;
+    } catch (e) {
+      console.warn('environment camera failed, trying default', e);
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        setTextAll('cam', 'ACTIVE');
+        return true;
+      } catch (e2) {
+        setTextAll('cam', 'FAILED');
+        $$('[data-key="cam"]').forEach(el => { el.classList.remove('ok'); el.classList.add('danger'); });
+        showAlert('KAMERA TIDAK TERDETEKSI', 'fall');
+        return false;
+      }
+    }
+  }
+
+  // ===== Clone HUD to right eye =====
+  function cloneHudToRight() {
+    hudRight.innerHTML = hudTemplate.innerHTML;
+  }
+
+  // ===== Canvas sizing =====
+  function resizeCanvases() {
+    [canvasLeft, canvasRight].forEach(c => {
+      const r = c.getBoundingClientRect();
+      c.width  = Math.max(1, Math.floor(r.width));
+      c.height = Math.max(1, Math.floor(r.height));
+    });
+  }
+  window.addEventListener('resize', resizeCanvases);
+
+  // ===== Draw video frame to eye canvas (with parallax) =====
+  function drawEyeFrame(ctx, canvas, parallaxOffset) {
+    const W = canvas.width, H = canvas.height;
+    if (video.readyState < 2 || !video.videoWidth) {
+      // fallback: black bg
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // scanline pattern
+      ctx.fillStyle = 'rgba(54,249,246,0.05)';
+      for (let y=0; y<H; y+=4) ctx.fillRect(0, y, W, 1);
+      return;
+    }
+    const vidW = video.videoWidth, vidH = video.videoHeight;
+    // Cover-fit (zoom to fill)
+    const scale = Math.max(W / vidW, H / vidH);
+    const drawW = vidW * scale;
+    const drawH = vidH * scale;
+    const dx = (W - drawW) / 2 + parallaxOffset;
+    const dy = (H - drawH) / 2;
+
+    // Mirror horizontally (selfie cam feel)
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, -dx - drawW, dy, drawW, drawH);
+    ctx.restore();
+
+    // Subtle lens tint
+    ctx.fillStyle = 'rgba(8, 30, 50, 0.08)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ===== Motion detection =====
+  function detectMotion() {
+    if (video.readyState < 2) return { threats: [], motionRatio: 0 };
+
+    pctx.save();
+    pctx.scale(-1, 1);
+    pctx.drawImage(video, -PROC_W, 0, PROC_W, PROC_H);
+    pctx.restore();
+    const cur = pctx.getImageData(0, 0, PROC_W, PROC_H);
+    const data = cur.data;
+    const gray = new Uint8ClampedArray(PROC_W * PROC_H);
+    for (let i=0, j=0; i<data.length; i+=4, j++) {
+      gray[j] = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+    }
+
+    if (!prevFrame) { prevFrame = gray; return { threats: [], motionRatio: 0 }; }
+
+    const CELL = 8;
+    const GW = Math.floor(PROC_W/CELL), GH = Math.floor(PROC_H/CELL);
+    const grid = new Float32Array(GW * GH);
+    const thr = sensitivity;
+    let totalMotion = 0;
+    for (let gy=0; gy<GH; gy++) {
+      for (let gx=0; gx<GW; gx++) {
+        let diffSum = 0;
+        const x0 = gx*CELL, y0 = gy*CELL;
+        for (let dy=0; dy<CELL; dy++) {
+          for (let dx=0; dx<CELL; dx++) {
+            const idx = (y0+dy)*PROC_W + (x0+dx);
+            const d = Math.abs(gray[idx] - prevFrame[idx]);
+            if (d > thr) diffSum += d;
+          }
+        }
+        const v = diffSum / (CELL*CELL);
+        grid[gy*GW + gx] = v;
+        totalMotion += v;
+      }
+    }
+    prevFrame = gray;
+
+    const cellThr = 8;
+    const visited = new Uint8Array(GW*GH);
+    const clusters = [];
+    for (let gy=0; gy<GH; gy++) {
+      for (let gx=0; gx<GW; gx++) {
+        const i0 = gy*GW + gx;
+        if (visited[i0] || grid[i0] < cellThr) continue;
+        const stack = [i0];
+        visited[i0] = 1;
+        let sum = grid[i0], cnt = 1;
+        let minx=gx, maxx=gx, miny=gy, maxy=gy;
+        while (stack.length) {
+          const ci = stack.pop();
+          const cx = ci % GW, cy = (ci/GW)|0;
+          for (let ny=cy-1; ny<=cy+1; ny++) {
+            for (let nx=cx-1; nx<=cx+1; nx++) {
+              if (nx<0||ny<0||nx>=GW||ny>=GH) continue;
+              const ni = ny*GW + nx;
+              if (visited[ni] || grid[ni] < cellThr) continue;
+              visited[ni] = 1;
+              sum += grid[ni]; cnt++;
+              if (nx<minx) minx=nx; if (nx>maxx) maxx=nx;
+              if (ny<miny) miny=ny; if (ny>maxy) maxy=ny;
+              stack.push(ni);
+            }
+          }
+        }
+        if (cnt < 4) continue;
+        const w = (maxx-minx+1)*CELL;
+        const h = (maxy-miny+1)*CELL;
+        const x = minx*CELL;
+        const y = miny*CELL;
+        clusters.push({
+          x, y, w, h,
+          area: w*h,
+          score: sum/cnt,
+          count: cnt
+        });
+      }
+    }
+
+    clusters.sort((a,b) => b.area - a.area);
+    const threats = clusters.slice(0, 5).map((c, idx) => {
+      const areaRatio = c.area / (PROC_W * PROC_H);
+      const distance = clamp(6.0 * Math.pow(0.5 / Math.max(areaRatio, 0.005), 0.42), 0.4, 8.0);
+      let level = 'safe';
+      if (areaRatio > 0.18 || distance < 1.2) level = 'danger';
+      else if (areaRatio > 0.06 || distance < 2.5) level = 'warn';
+      return { ...c, areaRatio, distance, level, id: idx };
+    });
+
+    const motionRatio = totalMotion / (GW*GH);
+    if (motionRatio > 14) {
+      stability = clamp(stability - 4, 0, 100);
+    } else {
+      stability = clamp(stability + 1.5, 0, 100);
+    }
+
+    return { threats, motionRatio };
+  }
+
+  // ===== Render threats on a single eye canvas =====
+  function renderThreatsOnCanvas(ctx, canvas, threats) {
+    const W = canvas.width, H = canvas.height;
+    const sx = W / PROC_W;
+    const sy = H / PROC_H;
+
+    threats.forEach((t, i) => {
+      const x = t.x * sx;
+      const y = t.y * sy;
+      const w = t.w * sx;
+      const h = t.h * sy;
+      const cx = x + w/2;
+      const cy = y + h/2;
+
+      let color = '#29ff8a';
+      if (t.level === 'warn') color = '#ffd23a';
+      if (t.level === 'danger') color = '#ff2d55';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      const cornerLen = Math.min(w, h) * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(x, y+cornerLen); ctx.lineTo(x, y); ctx.lineTo(x+cornerLen, y);
+      ctx.moveTo(x+w-cornerLen, y); ctx.lineTo(x+w, y); ctx.lineTo(x+w, y+cornerLen);
+      ctx.moveTo(x+w, y+h-cornerLen); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-cornerLen, y+h);
+      ctx.moveTo(x+cornerLen, y+h); ctx.lineTo(x, y+h); ctx.lineTo(x, y+h-cornerLen);
+      ctx.stroke();
+
+      ctx.shadowBlur = 4;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx-12, cy); ctx.lineTo(cx-4, cy);
+      ctx.moveTo(cx+4, cy);  ctx.lineTo(cx+12, cy);
+      ctx.moveTo(cx, cy-12); ctx.lineTo(cx, cy-4);
+      ctx.moveTo(cx, cy+4);  ctx.lineTo(cx, cy+12);
+      ctx.stroke();
+
+      // Label (un-mirrored text)
+      ctx.save();
+      ctx.scale(-1, 1);
+      const labelX = -(x + w);
+      const labelY = y - 6;
+      const label = `T${i+1} · ${t.distance.toFixed(1)}m · ${t.level.toUpperCase()}`;
+      ctx.font = 'bold 12px "Consolas", monospace';
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(labelX - 4, labelY - 14, tw + 8, 18);
+      ctx.fillStyle = color;
+      ctx.fillText(label, labelX, labelY);
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    });
+  }
+
+  // ===== Decide walking direction based on most dangerous threat =====
+  function decideDirection(threats) {
+    if (!threats.length) {
+      return { dir: 'lurus', label: 'LURUS · AMAN', level: 'safe' };
+    }
+    const order = { danger:3, warn:2, safe:1 };
+    const sorted = [...threats].sort((a,b) => order[b.level]-order[a.level] || b.area - a.area);
+    const t = sorted[0];
+
+    const cx = t.x + t.w/2;
+    const norm = (cx / PROC_W - 0.5) * 2; // -1..1 (note: camera mirrored)
+
+    if (t.level === 'danger') {
+      if (t.distance < 0.9) {
+        return { dir: 'mundur', label: 'MUNDUR!', level: 'danger' };
+      }
+      if (Math.abs(norm) < 0.18) {
+        return { dir: 'mundur', label: 'MUNDUR · BAHAYA', level: 'danger' };
+      }
+      return norm > 0
+        ? { dir: 'kanan', label: 'JALAN KE KANAN', level: 'danger' }
+        : { dir: 'kiri',  label: 'JALAN KE KIRI',  level: 'danger' };
+    }
+    if (t.level === 'warn') {
+      if (Math.abs(norm) < 0.18) {
+        return { dir: 'lurus', label: 'PELAN · WASPADA', level: 'warn' };
+      }
+      return norm > 0
+        ? { dir: 'kanan', label: 'GESER KANAN', level: 'warn' }
+        : { dir: 'kiri',  label: 'GESER KIRI',  level: 'warn' };
+    }
+    return { dir: 'lurus', label: 'LURUS · AMAN', level: 'safe' };
+  }
+
+  // ===== Arrow paths and positions =====
+  const ARROW_PATHS = {
+    lurus:  'M32 8 L52 32 L40 32 L40 56 L24 56 L24 32 L12 32 Z',
+    kiri:   'M8 32 L32 12 L32 24 L56 24 L56 40 L32 40 L32 52 Z',
+    kanan:  'M56 32 L32 12 L32 24 L8 24 L8 40 L32 40 L32 52 Z',
+    mundur: 'M32 56 L12 32 L24 32 L24 8 L40 8 L40 32 L52 32 Z'
+  };
+
+  // Path trail node x-offsets (in SVG coords, viewbox 0..400)
+  // Index 0 = nearest (bottom), 4 = furthest (top)
+  // Center is x=200. Range ~-150..150
+  const PATH_OFFSETS = {
+    lurus:  [0, 0, 0, 0, 0],
+    kiri:   [0, -18, -38, -58, -78],     // path curves LEFT (further away = more curve)
+    kanan:  [0, 18, 38, 58, 78],
+    mundur: [0, 0, 0, 0, 0]
+  };
+
+  // Arrow positions (percent of eye width / px from bottom)
+  const ARROW_POSITIONS = {
+    lurus:  { left: '50%',  bottom: '210px' },
+    kiri:   { left: '22%',  bottom: '210px' },
+    kanan:  { left: '78%',  bottom: '210px' },
+    mundur: { left: '50%',  bottom: '90px'  }
+  };
+  const LABEL_POSITIONS = {
+    lurus:  { left: '50%',  bottom: '185px' },
+    kiri:   { left: '22%',  bottom: '185px' },
+    kanan:  { left: '78%',  bottom: '185px' },
+    mundur: { left: '50%',  bottom: '65px'  }
+  };
+
+  function updateDirection(dir, label, level) {
+    currentDirection = dir;
+
+    if (!guideOn) {
+      setAttrAll('dirArrowPath', 'd', ARROW_PATHS.lurus);
+      setTextAll('dirLabel', 'PANDUAN OFF');
+      setClassAll('dirArrow', ['warn','danger'], false);
+      setClassAll('dirLabel', ['warn','danger'], false);
+      // reset positions
+      setStyleAll('dirArrow', 'left', '50%');
+      setStyleAll('dirArrow', 'bottom', '210px');
+      setStyleAll('dirLabel', 'left', '50%');
+      setStyleAll('dirLabel', 'bottom', '185px');
+      // straighten path
+      setClassAll('pathTrail', ['warn','danger'], false);
+      updatePathNodes('lurus');
+      return;
+    }
+
+    // Arrow shape
+    setAttrAll('dirArrowPath', 'd', ARROW_PATHS[dir] || ARROW_PATHS.lurus);
+
+    // Arrow position
+    const pos = ARROW_POSITIONS[dir] || ARROW_POSITIONS.lurus;
+    setStyleAll('dirArrow', 'left', pos.left);
+    setStyleAll('dirArrow', 'bottom', pos.bottom);
+
+    // Label position
+    const lpos = LABEL_POSITIONS[dir] || LABEL_POSITIONS.lurus;
+    setStyleAll('dirLabel', 'left', lpos.left);
+    setStyleAll('dirLabel', 'bottom', lpos.bottom);
+
+    // Label text
+    setTextAll('dirLabel', label);
+
+    // Color classes
+    setClassAll('dirArrow', ['warn','danger'], false);
+    setClassAll('dirLabel', ['warn','danger'], false);
+    if (level === 'warn') {
+      setClassAll('dirArrow', 'warn', true);
+      setClassAll('dirLabel', 'warn', true);
+    } else if (level === 'danger') {
+      setClassAll('dirArrow', 'danger', true);
+      setClassAll('dirLabel', 'danger', true);
+    }
+
+    // Path trail color + curve
+    setClassAll('pathTrail', ['warn','danger'], false);
+    if (level === 'warn')   setClassAll('pathTrail', 'warn', true);
+    if (level === 'danger') setClassAll('pathTrail', 'danger', true);
+    updatePathNodes(dir);
+  }
+
+  function updatePathNodes(dir) {
+    const offsets = PATH_OFFSETS[dir] || PATH_OFFSETS.lurus;
+    $$('[data-key="pathNodes"] .path-node').forEach(node => {
+      const i = parseInt(node.getAttribute('data-i'), 10);
+      const ofs = offsets[i] || 0;
+      node.setAttribute('transform', `translate(${ofs}, 0)`);
+    });
+    $$('[data-key="pathChevrons"] .path-chevron').forEach(chev => {
+      const i = parseInt(chev.getAttribute('data-i'), 10);
+      const ofs = offsets[i] || 0;
+      chev.setAttribute('transform', `translate(${ofs}, 0)`);
+    });
+  }
+
+  // ===== Update distance meter =====
+  function updateDistance(threats) {
+    if (!threats.length) {
+      setTextAll('dist', '--');
+      setStyleAll('distBar', 'width', '0%');
+      return;
+    }
+    const closest = threats.reduce((a,b) => a.distance < b.distance ? a : b);
+    setTextAll('dist', closest.distance.toFixed(1) + ' m');
+    const pct = clamp((6 - closest.distance) / 5.6 * 100, 0, 100);
+    setStyleAll('distBar', 'width', pct + '%');
+  }
+
+  // ===== Update threat list =====
+  function updateThreatList(threats) {
+    setTextAll('threatCount', String(threats.length));
+    if (!threats.length) {
+      setHtmlAll('threatList', '<li class="empty">tidak ada ancaman · area aman</li>');
+      return;
+    }
+    const html = threats.map((t, i) => {
+      const cls = t.level;
+      return `<li class="${cls}">
+        <span class="dot"></span>
+        <span class="name">CORAK-${String.fromCharCode(65+i)}</span>
+        <span class="dist">${t.distance.toFixed(1)}m</span>
+      </li>`;
+    }).join('');
+    setHtmlAll('threatList', html);
+  }
+
+  // ===== Update atlas status =====
+  function updateAtlas(threats) {
+    const hasDanger = threats.some(t => t.level === 'danger');
+    const hasWarn   = threats.some(t => t.level === 'warn');
+    $$('[data-key="atlas"]').forEach(el => {
+      el.classList.remove('warn','danger');
+      if (hasDanger) {
+        el.textContent = 'BAHAYA';
+        el.classList.add('danger');
+      } else if (hasWarn) {
+        el.textContent = 'WASPADA';
+        el.classList.add('warn');
+      } else {
+        el.textContent = threats.length ? 'PEMANTAUAN' : 'STANDBY';
+      }
+    });
+    $$('[data-key="reticle"]').forEach(el => {
+      el.classList.remove('warn','danger');
+      if (hasDanger)      el.classList.add('danger');
+      else if (hasWarn)   el.classList.add('warn');
+    });
+  }
+
+  // ===== Anti-fall =====
+  function updateAntiFall(motionRatio) {
+    setTextAll('stab', Math.round(stability) + '%');
+    if (stability < 40) {
+      $$('[data-key="stab"]').forEach(el => { el.classList.remove('ok'); el.classList.add('danger'); });
+      $$('[data-key="fall"]').forEach(el => { el.textContent='TINGGI'; el.classList.remove('ok'); el.classList.add('danger'); });
+      $$('[data-key="mode"]').forEach(el => { el.textContent='HATI-HATI'; el.classList.remove('ok'); el.classList.add('danger'); });
+      if (performance.now() - lastAlertTs > 2500) {
+        showAlert('RISIKO JATUH · BERHENTI SEBENTAR', 'fall');
+        beep(180, 0.18, 0.18);
+        lastAlertTs = performance.now();
+      }
+    } else if (stability < 70) {
+      $$('[data-key="stab"]').forEach(el => { el.classList.remove('ok','danger'); el.classList.add('warn'); });
+      $$('[data-key="fall"]').forEach(el => { el.textContent='SEDANG'; el.classList.remove('ok','danger'); el.classList.add('warn'); });
+      $$('[data-key="mode"]').forEach(el => { el.textContent='PELAN'; el.classList.remove('ok','danger'); el.classList.add('warn'); });
+    } else {
+      $$('[data-key="stab"]').forEach(el => { el.classList.remove('warn','danger'); el.classList.add('ok'); });
+      $$('[data-key="fall"]').forEach(el => { el.textContent='RENDAH'; el.classList.remove('warn','danger'); el.classList.add('ok'); });
+      $$('[data-key="mode"]').forEach(el => { el.textContent='PATROLI'; el.classList.remove('warn','danger'); el.classList.add('ok'); });
+    }
+  }
+
+  // ===== Lane indicator =====
+  function updateLane(dir) {
+    let lane = 'TENGAH';
+    if (dir === 'kiri') lane = 'KIRI';
+    else if (dir === 'kanan') lane = 'KANAN';
+    else if (dir === 'mundur') lane = 'MUNDUR';
+    setTextAll('lane', lane);
+  }
+
+  // ===== Compass =====
+  function setupCompass() {
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', (e) => {
+        if (e.alpha !== null && e.alpha !== undefined) {
+          compassHeading = 360 - e.alpha;
+          $$('[data-key="needle"]').forEach(el => {
+            el.style.transform = `translate(-50%, -100%) rotate(${compassHeading}deg)`;
+          });
+          setTextAll('heading', Math.round(compassHeading) + '°');
+        }
+      });
+    }
+  }
+
+  // ===== Main loop =====
+  function loop() {
+    if (!running) return;
+    rafId = requestAnimationFrame(loop);
+
+    fpsCounter++;
+    const now = performance.now();
+    if (now - fpsTimer >= 1000) {
+      fps = fpsCounter;
+      setTextAll('fps', String(fps));
+      fpsCounter = 0;
+      fpsTimer = now;
+    }
+
+    const { threats, motionRatio } = detectMotion();
+
+    // Draw video to both eye canvases (with parallax)
+    const parallax = parallaxOn ? 10 : 0;
+    drawEyeFrame(ctxLeft,  canvasLeft,  -parallax); // left eye sees camera shifted left
+    drawEyeFrame(ctxRight, canvasRight,  parallax);  // right eye sees camera shifted right
+
+    // Draw detection overlay on both eyes
+    renderThreatsOnCanvas(ctxLeft,  canvasLeft,  threats);
+    renderThreatsOnCanvas(ctxRight, canvasRight, threats);
+
+    // Update HUD state in both eyes
+    updateDistance(threats);
+    updateThreatList(threats);
+    updateAtlas(threats);
+    updateAntiFall(motionRatio);
+
+    const { dir, label, level } = decideDirection(threats);
+    updateDirection(dir, label, level);
+    updateLane(dir);
+
+    // Audio alerts
+    const hasDanger = threats.some(t => t.level === 'danger');
+    const hasWarn   = threats.some(t => t.level === 'warn');
+    if (hasDanger) {
+      setAlarm(true, 440, 0.22);
+      if (now - lastAlertTs > 1800) {
+        showAlert('BAHAYA · CORAK PERLAWANAN TERDETEKSI', '');
+        lastAlertTs = now;
+      }
+    } else if (hasWarn) {
+      setAlarm(true, 660, 0.08);
+      if (now - lastAlertTs > 3000) {
+        showAlert('WASPADA · GERAKAN TERDETEKSI', 'warn');
+        beep(880, 0.08, 0.10);
+        lastAlertTs = now;
+      }
+    } else {
+      setAlarm(false);
+    }
+  }
+
+  // ===== Start / Stop =====
+  async function startSystem() {
+    if (running) return;
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch (e) {}
+    }
+    startScreen.classList.add('hidden');
+    setTimeout(() => { startScreen.style.display = 'none'; }, 600);
+
+    viewport.classList.add('active');
+    // Clone HUD to right eye AFTER viewport is visible so sizes are correct
+    cloneHudToRight();
+    resizeCanvases();
+
+    const ok = await startCamera();
+    if (!ok) {
+      canvasLeft.classList.add('blurred');
+      canvasRight.classList.add('blurred');
+      showAlert('KAMERA OFFLINE · DEMO MODE', 'warn');
+    }
+
+    setTextAll('sys', 'ONLINE');
+    setTextAll('ai', 'v3.0.0');
+    await runBoot();
+
+    running = true;
+    setupCompass();
+    loop();
+    beep(880, 0.12, 0.15);
+    setTimeout(() => beep(1320, 0.18, 0.15), 200);
+  }
+
+  function stopSystem() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    setAlarm(false);
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    video.srcObject = null;
+    ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height);
+    ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height);
+    canvasLeft.classList.remove('blurred');
+    canvasRight.classList.remove('blurred');
+    viewport.classList.remove('active');
+    startScreen.style.display = 'flex';
+    setTimeout(() => startScreen.classList.remove('hidden'), 30);
+    setTextAll('sys', 'OFFLINE');
+    setTextAll('cam', 'OFF');
+  }
+
+  // ===== Event wiring =====
+  btnStart.addEventListener('click', startSystem);
+  btnStop.addEventListener('click', stopSystem);
+
+  btnMute.addEventListener('click', () => {
+    muted = !muted;
+    muteLabel.textContent = muted ? 'SUARA: OFF' : 'SUARA: ON';
+    btnMute.classList.toggle('active', !muted);
+    if (muted) setAlarm(false);
+    else beep(880, 0.08, 0.12);
+  });
+  btnMute.classList.add('active');
+
+  btnGuide.addEventListener('click', () => {
+    guideOn = !guideOn;
+    btnGuide.classList.toggle('active', guideOn);
+    if (!guideOn) {
+      // Reset
+      setAttrAll('dirArrowPath', 'd', ARROW_PATHS.lurus);
+      setTextAll('dirLabel', 'PANDUAN OFF');
+      setClassAll('dirArrow', ['warn','danger'], false);
+      setClassAll('dirLabel', ['warn','danger'], false);
+      setStyleAll('dirArrow', 'left', '50%');
+      setStyleAll('dirArrow', 'bottom', '210px');
+      setStyleAll('dirLabel', 'left', '50%');
+      setStyleAll('dirLabel', 'bottom', '185px');
+      setClassAll('pathTrail', ['warn','danger'], false);
+      updatePathNodes('lurus');
+    }
+    beep(660, 0.06, 0.10);
+  });
+
+  btnParallax.addEventListener('click', () => {
+    parallaxOn = !parallaxOn;
+    btnParallax.classList.toggle('active', parallaxOn);
+    beep(660, 0.06, 0.10);
+  });
+
+  sensRange.addEventListener('input', (e) => {
+    sensitivity = parseInt(e.target.value, 10);
+    sensValEl.textContent = String(sensitivity);
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (!running) return;
+    if (e.key === 'm' || e.key === 'M') btnMute.click();
+    if (e.key === 'g' || e.key === 'G') btnGuide.click();
+    if (e.key === 'p' || e.key === 'P') btnParallax.click();
+    if (e.key === 'Escape') btnStop.click();
+  });
+
+  // Handle visibility change
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && running) {
+      if (rafId) cancelAnimationFrame(rafId);
+      setAlarm(false);
+    } else if (!document.hidden && running) {
+      fpsTimer = performance.now();
+      fpsCounter = 0;
+      loop();
+    }
+  });
+
+  // Prevent pull-to-refresh on mobile
+  document.body.addEventListener('touchmove', (e) => {
+    if (running) e.preventDefault();
+  }, { passive: false });
+
+})();
+</script>
+</body>
+</html>
